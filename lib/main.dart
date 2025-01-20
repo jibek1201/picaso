@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 
 
 
@@ -211,8 +210,6 @@ class SecondPage extends StatelessWidget {
 
 
 
-
-
 class ThirdPage extends StatefulWidget {
   const ThirdPage({Key? key}) : super(key: key);
 
@@ -224,6 +221,13 @@ class _ThirdPageState extends State<ThirdPage> {
   bool _isSectionVisible = false; // Controls the visibility of the section
   bool _isArrowPressed = false; // To toggle between buttons
   double _selectedScale = 1.0; // To track the selected scale
+  bool isSaved = false; // Tracks the save state for the flag icon
+
+  void toggleSave() {
+    setState(() {
+      isSaved = !isSaved; // Toggle the save state
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,11 +244,12 @@ class _ThirdPageState extends State<ThirdPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bluetooth, color: Colors.black), // Bluetooth icon
-            onPressed: () {
-              // Add your Bluetooth-related action here
-              print("Bluetooth button pressed");
-            },
+            icon: Icon(
+              isSaved ? Icons.flag : Icons.outlined_flag, // Dynamic icon
+              color: isSaved ? Colors.red : Colors.black, // Dynamic color
+            ),
+            onPressed: toggleSave, // Toggle save state on press
+            tooltip: isSaved ? 'Unsave' : 'Save', // Dynamic tooltip
           ),
         ],
       ),
@@ -267,7 +272,6 @@ class _ThirdPageState extends State<ThirdPage> {
             ),
           ),
 
-          // Options Section (appears above the text input when visible)
           if (_isSectionVisible)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -311,10 +315,11 @@ class _ThirdPageState extends State<ThirdPage> {
 
                   // Scale Section
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Padding(
-                        padding: EdgeInsets.only(left: 20, right: 20),
+                        padding: EdgeInsets.only(left: 46, right: 20),
                         child: Text(
                           'scale',
                           style: TextStyle(
@@ -330,31 +335,6 @@ class _ThirdPageState extends State<ThirdPage> {
                           _buildScaleButton(1.0),
                           const SizedBox(width: 10),
                           _buildScaleButton(2.0),
-                          const SizedBox(width: 10), // Space before the upload icon
-                          IconButton(
-                            icon: const Icon(Icons.arrow_downward, color: Colors.black),
-                            onPressed: () async {
-                              try {
-                                // Open the Finder (macOS) or File Explorer (Windows)
-                                FilePickerResult? result = await FilePicker.platform.pickFiles(
-                                  type: FileType.image, // Restrict to image files
-                                  allowMultiple: false, // Only allow single file selection
-                                  dialogTitle: 'Select an image', // Optional dialog title
-                                );
-
-                                if (result != null) {
-                                  File file = File(result.files.single.path!);
-                                  print("Selected file path: ${file.path}");
-                                  // Add further processing or display logic here
-                                } else {
-                                  print("No file selected");
-                                }
-                              } catch (e) {
-                                print("Error opening file picker: $e");
-                              }
-                            },
-
-                          ),
                         ],
                       ),
                     ],
@@ -395,6 +375,21 @@ class _ThirdPageState extends State<ThirdPage> {
                                 _isSectionVisible = false;
                               });
                             },
+                          ),
+                        if (_isArrowPressed)
+                          Expanded(
+                            child: Container(), // To take up space and push the Download button to the right
+                          ),
+                        if (_isArrowPressed)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 50),  // 20px space to the right
+                            child: IconButton(
+                              icon: const Icon(Icons.download_rounded, color: Colors.black), // Download icon with arrow down
+                              onPressed: () {
+                                // Add your download-related action here
+                                print("Download button pressed");
+                              },
+                            ),
                           ),
                         Text(
                           !_isArrowPressed ? 'more options' : '',
@@ -535,11 +530,10 @@ class _ThirdPageState extends State<ThirdPage> {
           color: _selectedScale == value ? Colors.grey : Colors.grey[200],
           // Selected color
           border: Border.all(
-            color: _selectedScale == value
-                ? Colors.black.withOpacity(
-                0.6) // Slightly darker border for selected
-                : Colors.black.withOpacity(0.1),
             width: 1,
+            color: _selectedScale == value
+                ? Colors.black.withOpacity(0.6) // Slightly darker border for selected
+                : Colors.black.withOpacity(0.1),
           ),
           borderRadius: BorderRadius.circular(8),
         ),
