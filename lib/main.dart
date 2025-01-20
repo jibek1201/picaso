@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 
 
@@ -222,10 +224,39 @@ class _ThirdPageState extends State<ThirdPage> {
   bool _isArrowPressed = false; // To toggle between buttons
   double _selectedScale = 1.0; // To track the selected scale
   bool isSaved = false; // Tracks the save state for the flag icon
+  String? _imagePath; // Store selected image path
+  final TextEditingController _controller = TextEditingController();
 
+  // Function to toggle the save state
   void toggleSave() {
     setState(() {
       isSaved = !isSaved; // Toggle the save state
+    });
+  }
+
+  // Function to pick an image using image_picker
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _imagePath = pickedFile.path; // Set the image path
+      });
+    }
+  }
+
+  // Function to handle Generate button press
+  void _generateAction() {
+    // Add your "Generate" action here
+    print('Generate button pressed');
+  }
+
+  // Function to handle Clear button press
+  void _clearAction() {
+    setState(() {
+      _controller.clear(); // Clear text input
+      _imagePath = null; // Clear image
     });
   }
 
@@ -268,6 +299,9 @@ class _ThirdPageState extends State<ThirdPage> {
                   ),
                   borderRadius: BorderRadius.circular(5), // Rounded corners
                 ),
+                child: _imagePath == null
+                    ? const Center(child: Text('No image selected'))
+                    : Image.file(File(_imagePath!)), // Show image
               ),
             ),
           ),
@@ -385,10 +419,7 @@ class _ThirdPageState extends State<ThirdPage> {
                             padding: const EdgeInsets.only(right: 50),  // 20px space to the right
                             child: IconButton(
                               icon: const Icon(Icons.download_rounded, color: Colors.black), // Download icon with arrow down
-                              onPressed: () {
-                                // Add your download-related action here
-                                print("Download button pressed");
-                              },
+                              onPressed: _pickImage, // Trigger image picker
                             ),
                           ),
                         Text(
@@ -417,8 +448,9 @@ class _ThirdPageState extends State<ThirdPage> {
                       width: 2,
                     ),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: 'type your prompt',
                       hintStyle: TextStyle(
@@ -427,7 +459,7 @@ class _ThirdPageState extends State<ThirdPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       color: Colors.black,
                       fontWeight: FontWeight.w500,
@@ -441,9 +473,7 @@ class _ThirdPageState extends State<ThirdPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ElevatedButton(
-                      onPressed: () {
-                        // Add your "Generate" button action here
-                      },
+                      onPressed: _generateAction,
                       style: ElevatedButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.black,
@@ -462,9 +492,7 @@ class _ThirdPageState extends State<ThirdPage> {
                     ),
                     const SizedBox(width: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        // Add your "Clear" button action here
-                      },
+                      onPressed: _clearAction,
                       style: ElevatedButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.black,
