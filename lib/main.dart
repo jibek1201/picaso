@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+
 
 
 
@@ -211,7 +214,6 @@ class SecondPage extends StatelessWidget {
 
 
 
-
 class ThirdPage extends StatefulWidget {
   const ThirdPage({Key? key}) : super(key: key);
 
@@ -225,6 +227,7 @@ class _ThirdPageState extends State<ThirdPage> {
   double _selectedScale = 1.0; // To track the selected scale
   bool isSaved = false; // Tracks the save state for the flag icon
   String? _imagePath; // Store selected image path
+  String? _contourImagePath; // Store path for the contour image
   final TextEditingController _controller = TextEditingController();
 
   // Function to toggle the save state
@@ -242,14 +245,54 @@ class _ThirdPageState extends State<ThirdPage> {
     if (pickedFile != null) {
       setState(() {
         _imagePath = pickedFile.path; // Set the image path
+        _contourImagePath = null; // Clear contour image when a new image is picked
       });
     }
   }
 
-  // Function to handle Generate button press
-  void _generateAction() {
-    // Add your "Generate" action here
-    print('Generate button pressed');
+  // Function to process the image and generate a white image with a black contour
+  Future<void> _generateContourImage() async {
+    if (_imagePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an image first.')),
+      );
+      return;
+    }
+
+    try {
+      final imageBytes = await File(_imagePath!).readAsBytes();
+      final decodedImage = img.decodeImage(imageBytes);
+
+      if (decodedImage == null) {
+        throw Exception("Failed to decode image.");
+      }
+
+      // Convert the image to grayscale
+      final grayImage = img.grayscale(decodedImage);
+
+      // Apply edge detection to create contours
+      final edgeImage = img.sobel(grayImage);
+
+      // Invert the image to make the background white and contours black
+      final invertedImage = img.invert(edgeImage);
+
+      // Save the processed image as a temporary file
+      final tempDir = Directory.systemTemp;
+      final contourFile = File('${tempDir.path}/contour_image.png')
+        ..writeAsBytesSync(img.encodePng(invertedImage));
+
+      setState(() {
+        _contourImagePath = contourFile.path; // Set the contour image path
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contour image generated successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to process the image: $e')),
+      );
+    }
   }
 
   // Function to handle Clear button press
@@ -257,6 +300,7 @@ class _ThirdPageState extends State<ThirdPage> {
     setState(() {
       _controller.clear(); // Clear text input
       _imagePath = null; // Clear image
+      _contourImagePath = null; // Clear contour image
     });
   }
 
@@ -299,9 +343,12 @@ class _ThirdPageState extends State<ThirdPage> {
                   ),
                   borderRadius: BorderRadius.circular(5), // Rounded corners
                 ),
-                child: _imagePath == null
-                    ? const Center(child: Text('No image selected'))
-                    : Image.file(File(_imagePath!)), // Show image
+                child: _contourImagePath != null
+                    ? Image.file(
+                    File(_contourImagePath!)) // Display contour image
+                    : _imagePath != null
+                    ? Image.file(File(_imagePath!)) // Display original image
+                    : const Center(child: Text('No image selected')),
               ),
             ),
           ),
@@ -345,7 +392,8 @@ class _ThirdPageState extends State<ThirdPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12), // Space between 'dimension' and 'scale'
+                  const SizedBox(height: 12),
+                  // Space between 'dimension' and 'scale'
 
                   // Scale Section
                   Row(
@@ -416,9 +464,12 @@ class _ThirdPageState extends State<ThirdPage> {
                           ),
                         if (_isArrowPressed)
                           Padding(
-                            padding: const EdgeInsets.only(right: 50),  // 20px space to the right
+                            padding: const EdgeInsets.only(right: 50),
+                            // 20px space to the right
                             child: IconButton(
-                              icon: const Icon(Icons.download_rounded, color: Colors.black), // Download icon with arrow down
+                              icon: const Icon(
+                                  Icons.download_rounded, color: Colors.black),
+                              // Download icon with arrow down
                               onPressed: _pickImage, // Trigger image picker
                             ),
                           ),
@@ -473,22 +524,16 @@ class _ThirdPageState extends State<ThirdPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ElevatedButton(
-                      onPressed: _generateAction,
+                      onPressed: _generateContourImage,
                       style: ElevatedButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 70,
-                          vertical: 16,
-                        ),
+                            horizontal: 70, vertical: 16),
                       ),
-                      child: const Text(
-                        'Generate',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: const Text('Generate'),
                     ),
                     const SizedBox(width: 20),
                     ElevatedButton(
@@ -497,17 +542,11 @@ class _ThirdPageState extends State<ThirdPage> {
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
+                            horizontal: 20, vertical: 16),
                       ),
-                      child: const Text(
-                        'Clear',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: const Text('Clear'),
                     ),
                   ],
                 ),
@@ -518,7 +557,6 @@ class _ThirdPageState extends State<ThirdPage> {
       ),
     );
   }
-
   // Helper Method for Square Input Fields
   Widget _buildSquareInputField(String hint) {
     return Container(
