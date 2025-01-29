@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
+import '../database/database_helper.dart'; // Import your database helper here
+
+
 
 
 
@@ -214,6 +218,7 @@ class SecondPage extends StatelessWidget {
 
 
 
+
 class ThirdPage extends StatefulWidget {
   const ThirdPage({Key? key}) : super(key: key);
 
@@ -222,35 +227,48 @@ class ThirdPage extends StatefulWidget {
 }
 
 class _ThirdPageState extends State<ThirdPage> {
-  bool _isSectionVisible = false; // Controls the visibility of the section
-  bool _isArrowPressed = false; // To toggle between buttons
-  double _selectedScale = 1.0; // To track the selected scale
-  bool isSaved = false; // Tracks the save state for the flag icon
-  String? _imagePath; // Store selected image path
-  String? _contourImagePath; // Store path for the contour image
+  bool _isSectionVisible = false;
+  bool _isArrowPressed = false;
+  double _selectedScale = 1.0;
+  bool isSaved = false;
+  String? _imagePath;
+  String? _contourImagePath;
   final TextEditingController _controller = TextEditingController();
 
-  // Function to toggle the save state
-  void toggleSave() {
-    setState(() {
-      isSaved = !isSaved; // Toggle the save state
-    });
+  // Function to toggle save state and interact with the database
+  void toggleSave() async {
+    if (_imagePath != null) {
+      // Save the image to the database
+      await DatabaseHelper().insertImage(_imagePath!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image saved successfully!')),
+      );
+
+      // Navigate to Fourth Page to display saved images
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const FourthPage()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No image to save.')),
+      );
+    }
   }
 
-  // Function to pick an image using image_picker
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
-        _imagePath = pickedFile.path; // Set the image path
-        _contourImagePath = null; // Clear contour image when a new image is picked
+        _imagePath = pickedFile.path;
+        _contourImagePath = null;
       });
     }
   }
 
-  // Function to process the image and generate a white image with a black contour
   Future<void> _generateContourImage() async {
     if (_imagePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -267,22 +285,16 @@ class _ThirdPageState extends State<ThirdPage> {
         throw Exception("Failed to decode image.");
       }
 
-      // Convert the image to grayscale
       final grayImage = img.grayscale(decodedImage);
-
-      // Apply edge detection to create contours
       final edgeImage = img.sobel(grayImage);
-
-      // Invert the image to make the background white and contours black
       final invertedImage = img.invert(edgeImage);
 
-      // Save the processed image as a temporary file
       final tempDir = Directory.systemTemp;
       final contourFile = File('${tempDir.path}/contour_image.png')
         ..writeAsBytesSync(img.encodePng(invertedImage));
 
       setState(() {
-        _contourImagePath = contourFile.path; // Set the contour image path
+        _contourImagePath = contourFile.path;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -295,36 +307,35 @@ class _ThirdPageState extends State<ThirdPage> {
     }
   }
 
-  // Function to handle Clear button press
   void _clearAction() {
     setState(() {
-      _controller.clear(); // Clear text input
-      _imagePath = null; // Clear image
-      _contourImagePath = null; // Clear contour image
+      _controller.clear();
+      _imagePath = null;
+      _contourImagePath = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF), // White background color
+      backgroundColor: const Color(0xFFFFFFFF),
       appBar: AppBar(
-        backgroundColor: Colors.white, // White background for the app bar
-        elevation: 0, // Removes shadow
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black), // Back arrow
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context); // Navigate back to the previous page
+            Navigator.pop(context);
           },
         ),
         actions: [
           IconButton(
             icon: Icon(
-              isSaved ? Icons.flag : Icons.outlined_flag, // Dynamic icon
-              color: isSaved ? Colors.red : Colors.black, // Dynamic color
+              isSaved ? Icons.flag : Icons.outlined_flag,
+              color: isSaved ? Colors.red : Colors.black,
             ),
-            onPressed: toggleSave, // Toggle save state on press
-            tooltip: isSaved ? 'Unsave' : 'Save', // Dynamic tooltip
+            onPressed: toggleSave,
+            tooltip: isSaved ? 'Unsave' : 'Save',
           ),
         ],
       ),
@@ -333,21 +344,20 @@ class _ThirdPageState extends State<ThirdPage> {
           Expanded(
             child: Center(
               child: Container(
-                width: 300, // Width of the frame
-                height: 400, // Height of the frame
+                width: 300,
+                height: 400,
                 decoration: BoxDecoration(
-                  color: Colors.white, // Frame color
+                  color: Colors.white,
                   border: Border.all(
-                    color: Colors.black.withOpacity(0.2), // Border color
-                    width: 2, // Border width
+                    color: Colors.black.withOpacity(0.2),
+                    width: 2,
                   ),
-                  borderRadius: BorderRadius.circular(5), // Rounded corners
+                  borderRadius: BorderRadius.circular(5),
                 ),
                 child: _contourImagePath != null
-                    ? Image.file(
-                    File(_contourImagePath!)) // Display contour image
+                    ? Image.file(File(_contourImagePath!))
                     : _imagePath != null
-                    ? Image.file(File(_imagePath!)) // Display original image
+                    ? Image.file(File(_imagePath!))
                     : const Center(child: Text('No image selected')),
               ),
             ),
@@ -360,7 +370,6 @@ class _ThirdPageState extends State<ThirdPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Dimension Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -378,9 +387,9 @@ class _ThirdPageState extends State<ThirdPage> {
                       Row(
                         children: [
                           _buildSquareInputField(''),
-                          const SizedBox(width: 6), // Space between the fields
+                          const SizedBox(width: 6),
                           _buildSquareInputField(''),
-                          const SizedBox(width: 6), // Space before 'mm'
+                          const SizedBox(width: 6),
                           const Text(
                             'mm',
                             style: TextStyle(
@@ -393,9 +402,6 @@ class _ThirdPageState extends State<ThirdPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // Space between 'dimension' and 'scale'
-
-                  // Scale Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -424,13 +430,10 @@ class _ThirdPageState extends State<ThirdPage> {
                 ],
               ),
             ),
-
-          // Input and Button Section
           Padding(
             padding: const EdgeInsets.only(bottom: 40),
             child: Column(
               children: [
-                // Toggle Buttons Section
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10, left: 50),
                   child: Align(
@@ -460,17 +463,15 @@ class _ThirdPageState extends State<ThirdPage> {
                           ),
                         if (_isArrowPressed)
                           Expanded(
-                            child: Container(), // To take up space and push the Download button to the right
+                            child: Container(),
                           ),
                         if (_isArrowPressed)
                           Padding(
                             padding: const EdgeInsets.only(right: 50),
-                            // 20px space to the right
                             child: IconButton(
-                              icon: const Icon(
-                                  Icons.download_rounded, color: Colors.black),
-                              // Download icon with arrow down
-                              onPressed: _pickImage, // Trigger image picker
+                              icon: const Icon(Icons.download_rounded,
+                                  color: Colors.black),
+                              onPressed: _pickImage,
                             ),
                           ),
                         Text(
@@ -485,7 +486,6 @@ class _ThirdPageState extends State<ThirdPage> {
                     ),
                   ),
                 ),
-                // Text Input Section
                 Container(
                   width: 300,
                   height: 40,
@@ -518,8 +518,6 @@ class _ThirdPageState extends State<ThirdPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-
-                // Generate and Clear Buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -557,7 +555,7 @@ class _ThirdPageState extends State<ThirdPage> {
       ),
     );
   }
-  // Helper Method for Square Input Fields
+
   Widget _buildSquareInputField(String hint) {
     return Container(
       width: 56,
@@ -581,12 +579,11 @@ class _ThirdPageState extends State<ThirdPage> {
     );
   }
 
-  // Helper Method for Scale Buttons
   Widget _buildScaleButton(double value) {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedScale = value; // Set the selected scale
+          _selectedScale = value;
         });
       },
       child: Container(
@@ -594,11 +591,10 @@ class _ThirdPageState extends State<ThirdPage> {
         height: 30,
         decoration: BoxDecoration(
           color: _selectedScale == value ? Colors.grey : Colors.grey[200],
-          // Selected color
           border: Border.all(
             width: 1,
             color: _selectedScale == value
-                ? Colors.black.withOpacity(0.6) // Slightly darker border for selected
+                ? Colors.black.withOpacity(0.6)
                 : Colors.black.withOpacity(0.1),
           ),
           borderRadius: BorderRadius.circular(8),
@@ -609,7 +605,6 @@ class _ThirdPageState extends State<ThirdPage> {
             style: TextStyle(
               color: _selectedScale == value ? Colors.black : Colors.black,
               fontSize: 14,
-              fontWeight: FontWeight.normal,
             ),
           ),
         ),
@@ -617,3 +612,72 @@ class _ThirdPageState extends State<ThirdPage> {
     );
   }
 }
+
+
+
+
+class FourthPage extends StatefulWidget {
+  const FourthPage({Key? key}) : super(key: key);
+
+  @override
+  _FourthPageState createState() => _FourthPageState();
+}
+
+class _FourthPageState extends State<FourthPage> {
+  List<String> _savedImages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedImages();
+  }
+
+  Future<void> _loadSavedImages() async {
+    final images = await DatabaseHelper().getImages();
+    setState(() {
+      _savedImages = images;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Saved Images', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: _savedImages.isNotEmpty
+          ? GridView.builder(
+        padding: const EdgeInsets.all(10),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: _savedImages.length,
+        itemBuilder: (context, index) {
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.file(
+                File(_savedImages[index]),
+                fit: BoxFit.cover,
+              ),
+            ),
+          );
+        },
+      )
+          : const Center(
+        child: Text(
+          'No images saved.',
+          style: TextStyle(fontSize: 16, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
