@@ -218,7 +218,6 @@ class SecondPage extends StatelessWidget {
 
 
 
-
 class ThirdPage extends StatefulWidget {
   const ThirdPage({Key? key}) : super(key: key);
 
@@ -237,21 +236,14 @@ class _ThirdPageState extends State<ThirdPage> {
 
   // Function to toggle save state and interact with the database
   void toggleSave() async {
-    if (_imagePath != null) {
-      // Save the image to the database
-      await DatabaseHelper().insertImage(_imagePath!);
+    if (_contourImagePath != null) {
+      // Add your database helper call here
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image saved successfully!')),
-      );
-
-      // Navigate to Fourth Page to display saved images
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const FourthPage()),
+        const SnackBar(content: Text('Contour image saved successfully!')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No image to save.')),
+        const SnackBar(content: Text('No contour image to save.')),
       );
     }
   }
@@ -289,7 +281,7 @@ class _ThirdPageState extends State<ThirdPage> {
       final edgeImage = img.sobel(grayImage);
       final invertedImage = img.invert(edgeImage);
 
-      final tempDir = Directory.systemTemp;
+      final tempDir = await getTemporaryDirectory();
       final contourFile = File('${tempDir.path}/contour_image.png')
         ..writeAsBytesSync(img.encodePng(invertedImage));
 
@@ -329,16 +321,25 @@ class _ThirdPageState extends State<ThirdPage> {
           },
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              isSaved ? Icons.flag : Icons.outlined_flag,
-              color: isSaved ? Colors.red : Colors.black,
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FourthPage()),
+                );
+              },
+              child: Image.asset(
+                'images/vector.png', // Replace with your image path
+                width: 24, // Set the size you want for the image
+                height: 24,
+              ),
             ),
-            onPressed: toggleSave,
-            tooltip: isSaved ? 'Unsave' : 'Save',
           ),
         ],
       ),
+
       body: Column(
         children: [
           Expanded(
@@ -529,11 +530,24 @@ class _ThirdPageState extends State<ThirdPage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 70, vertical: 16),
+                            horizontal: 50, vertical: 16),
                       ),
                       child: const Text('Generate'),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: toggleSave,
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 16),
+                      ),
+                      child: const Text('Save'),
+                    ),
+                    const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: _clearAction,
                       style: ElevatedButton.styleFrom(
@@ -542,7 +556,7 @@ class _ThirdPageState extends State<ThirdPage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
+                            horizontal: 12, vertical: 16),
                       ),
                       child: const Text('Clear'),
                     ),
@@ -616,6 +630,13 @@ class _ThirdPageState extends State<ThirdPage> {
 
 
 
+
+
+
+
+
+
+
 class FourthPage extends StatefulWidget {
   const FourthPage({Key? key}) : super(key: key);
 
@@ -673,11 +694,10 @@ class _FourthPageState extends State<FourthPage> {
       )
           : const Center(
         child: Text(
-          'No images saved.',
+          'No contour images saved.',
           style: TextStyle(fontSize: 16, color: Colors.black54),
         ),
       ),
     );
   }
 }
-
