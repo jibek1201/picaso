@@ -234,10 +234,13 @@ class _ThirdPageState extends State<ThirdPage> {
   String? _contourImagePath;
   final TextEditingController _controller = TextEditingController();
 
-  // Function to toggle save state and interact with the database
   void toggleSave() async {
     if (_contourImagePath != null) {
-      // Add your database helper call here
+      await DatabaseHelper().insertImage(_contourImagePath!);
+      setState(() {
+        isSaved = true;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contour image saved successfully!')),
       );
@@ -248,15 +251,17 @@ class _ThirdPageState extends State<ThirdPage> {
     }
   }
 
+  // Rest of your methods and widget build code...
+
+
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-        source: ImageSource.gallery);
+    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
         _imagePath = pickedFile.path;
-        _contourImagePath = null;
+        _contourImagePath = null; // Clear previous contour image if any
       });
     }
   }
@@ -304,6 +309,7 @@ class _ThirdPageState extends State<ThirdPage> {
       _controller.clear();
       _imagePath = null;
       _contourImagePath = null;
+      isSaved = false;  // Reset save state
     });
   }
 
@@ -339,7 +345,6 @@ class _ThirdPageState extends State<ThirdPage> {
           ),
         ],
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -363,7 +368,6 @@ class _ThirdPageState extends State<ThirdPage> {
               ),
             ),
           ),
-
           if (_isSectionVisible)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -637,6 +641,8 @@ class _ThirdPageState extends State<ThirdPage> {
 
 
 
+
+
 class FourthPage extends StatefulWidget {
   const FourthPage({Key? key}) : super(key: key);
 
@@ -678,6 +684,16 @@ class _FourthPageState extends State<FourthPage> {
         ),
         itemCount: _savedImages.length,
         itemBuilder: (context, index) {
+          String imagePath = _savedImages[index];
+          print("Loading image from path: $imagePath"); // Debugging line
+
+          File imageFile = File(imagePath);
+          if (!imageFile.existsSync()) {
+            return Center(
+              child: Text("Image not found", style: TextStyle(color: Colors.red)),
+            );
+          }
+
           return Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -685,7 +701,7 @@ class _FourthPageState extends State<FourthPage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.file(
-                File(_savedImages[index]),
+                imageFile,
                 fit: BoxFit.cover,
               ),
             ),
