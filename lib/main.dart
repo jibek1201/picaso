@@ -236,7 +236,20 @@ class _ThirdPageState extends State<ThirdPage> {
 
   void toggleSave() async {
     if (_contourImagePath != null) {
-      await DatabaseHelper().insertImage(_contourImagePath!);
+      // Generate a unique filename using the current timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final uniqueFilename = 'contour_image_$timestamp.png';
+
+      final directory = await getApplicationDocumentsDirectory(); // Get app directory to save the image
+      final uniqueFilePath = '${directory.path}/$uniqueFilename';
+
+      // Copy the contour image to the new file path
+      final contourFile = File(_contourImagePath!);
+      await contourFile.copy(uniqueFilePath);
+
+      // Insert the new file path into the database
+      await DatabaseHelper().insertImage(uniqueFilePath);
+
       setState(() {
         isSaved = true;
       });
@@ -250,9 +263,6 @@ class _ThirdPageState extends State<ThirdPage> {
       );
     }
   }
-
-  // Rest of your methods and widget build code...
-
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -630,7 +640,6 @@ class _ThirdPageState extends State<ThirdPage> {
     );
   }
 }
-
 
 
 
