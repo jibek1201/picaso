@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -218,8 +219,11 @@ class SecondPage extends StatelessWidget {
 
 
 
+
 class ThirdPage extends StatefulWidget {
-  const ThirdPage({Key? key}) : super(key: key);
+  final String? initialImagePath; // Add a parameter to receive the image path
+
+  const ThirdPage({Key? key, this.initialImagePath}) : super(key: key);
 
   @override
   _ThirdPageState createState() => _ThirdPageState();
@@ -233,6 +237,17 @@ class _ThirdPageState extends State<ThirdPage> {
   String? _imagePath;
   String? _contourImagePath;
   final TextEditingController _controller = TextEditingController();
+  String _savedFavImg = '';
+
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the _imagePath with the image passed from FourthPage if available
+    if (widget.initialImagePath != null) {
+      _imagePath = widget.initialImagePath;
+    }
+  }
 
   void toggleSave() async {
     if (_contourImagePath != null) {
@@ -258,6 +273,13 @@ class _ThirdPageState extends State<ThirdPage> {
         const SnackBar(content: Text('No contour image to save.')),
       );
     }
+  }
+
+  Future<void> _loadSavedImages() async {
+    final images = await DatabaseHelper().getFavImage();
+    setState(() {
+      _savedFavImg= images;
+    });
   }
 
   Future<void> _pickImage() async {
@@ -310,7 +332,6 @@ class _ThirdPageState extends State<ThirdPage> {
       );
     }
   }
-
 
   void _clearAction() {
     setState(() {
@@ -368,11 +389,13 @@ class _ThirdPageState extends State<ThirdPage> {
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: _contourImagePath != null
-                    ? Image.file(File(_contourImagePath!))
-                    : _imagePath != null
-                    ? Image.file(File(_imagePath!))
-                    : const Center(child: Text('No image selected')),
+                // child: _contourImagePath != null
+                //     ? Image.file(File(_contourImagePath!))
+                //     : _imagePath != null
+                //     ? Image.file(File(_imagePath!))
+                //     : const Center(child: Text('No image selected')),
+                
+                child: _savedFavImg.isNotEmpty ? Image.asset(_savedFavImg) : Text(''),
               ),
             ),
           ),
@@ -669,14 +692,17 @@ class _FourthPageState extends State<FourthPage> {
     });
   }
 
-  void _toggleSelection(String imagePath) {
-    setState(() {
+  Future<void> _toggleSelection(String imagePath) async{
+
       if (_selectedImages.contains(imagePath)) {
-        _selectedImages.remove(imagePath);
+        setState(() {
+          _selectedImages.remove(imagePath);
+        });
       } else {
-        _selectedImages.add(imagePath);
+        // _selectedImages.add(imagePath);
+       await   DatabaseHelper().favImage(imagePath);
       }
-    });
+
   }
 
   Future<void> _deleteSelectedImages() async {
@@ -689,8 +715,10 @@ class _FourthPageState extends State<FourthPage> {
 
     try {
       for (String imagePath in _selectedImages) {
+        // Remove the image record from the database
         await DatabaseHelper().deleteImage(imagePath);
 
+        // Delete the image file from the device
         final file = File(imagePath);
         if (await file.exists()) {
           await file.delete();
@@ -746,7 +774,10 @@ class _FourthPageState extends State<FourthPage> {
           File imageFile = File(imagePath);
           if (!imageFile.existsSync()) {
             return Center(
-              child: Text("Image not found", style: TextStyle(color: Colors.red)),
+              child: Text(
+                "Image not found",
+                style: TextStyle(color: Colors.red),
+              ),
             );
           }
 
@@ -756,10 +787,11 @@ class _FourthPageState extends State<FourthPage> {
             onLongPress: () => _toggleSelection(imagePath),
             onTap: () {
               if (_selectedImages.isNotEmpty) {
+                log('${imagePath}');
                 _toggleSelection(imagePath);
               } else {
                 // Pass the selected image path back to the ThirdPage
-                Navigator.pop(context, imagePath);
+                Navigator.pop(context, imagePath); // This sends the imagePath back
               }
             },
             child: Stack(

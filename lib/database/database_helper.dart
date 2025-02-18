@@ -46,6 +46,16 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> favImage(String image) async {
+    final db = await database;
+    await db.insert(
+      'images',
+      {'favPath': image},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+
   // Fetch all saved image paths from the database
   Future<List<String>> getImages() async {
     final db = await database;
@@ -53,6 +63,14 @@ class DatabaseHelper {
 
     // Extract and return the image paths from the database
     return List<String>.from(maps.map((map) => map['imagePath']));
+  }
+
+  Future<String> getFavImage() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('images');
+
+    // Extract and return the image paths from the database
+    return maps.map((map) => map['favPath']).first;
   }
 
   // Delete an image by its path
