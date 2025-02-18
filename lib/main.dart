@@ -236,18 +236,14 @@ class _ThirdPageState extends State<ThirdPage> {
 
   void toggleSave() async {
     if (_contourImagePath != null) {
-      // Generate a unique filename using the current timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uniqueFilename = 'contour_image_$timestamp.png';
-
-      final directory = await getApplicationDocumentsDirectory(); // Get app directory to save the image
+      final directory = await getApplicationDocumentsDirectory();
       final uniqueFilePath = '${directory.path}/$uniqueFilename';
 
-      // Copy the contour image to the new file path
       final contourFile = File(_contourImagePath!);
       await contourFile.copy(uniqueFilePath);
 
-      // Insert the new file path into the database
       await DatabaseHelper().insertImage(uniqueFilePath);
 
       setState(() {
@@ -271,7 +267,7 @@ class _ThirdPageState extends State<ThirdPage> {
     if (pickedFile != null) {
       setState(() {
         _imagePath = pickedFile.path;
-        _contourImagePath = null; // Clear previous contour image if any
+        _contourImagePath = null; // Clear the previous contour image
       });
     }
   }
@@ -297,7 +293,8 @@ class _ThirdPageState extends State<ThirdPage> {
       final invertedImage = img.invert(edgeImage);
 
       final tempDir = await getTemporaryDirectory();
-      final contourFile = File('${tempDir.path}/contour_image.png')
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final contourFile = File('${tempDir.path}/contour_image_$timestamp.png')
         ..writeAsBytesSync(img.encodePng(invertedImage));
 
       setState(() {
@@ -314,12 +311,13 @@ class _ThirdPageState extends State<ThirdPage> {
     }
   }
 
+
   void _clearAction() {
     setState(() {
       _controller.clear();
       _imagePath = null;
       _contourImagePath = null;
-      isSaved = false;  // Reset save state
+      isSaved = false; // Reset save state
     });
   }
 
@@ -347,8 +345,8 @@ class _ThirdPageState extends State<ThirdPage> {
                 );
               },
               child: Image.asset(
-                'images/vector.png', // Replace with your image path
-                width: 24, // Set the size you want for the image
+                'images/vector.png',
+                width: 24,
                 height: 24,
               ),
             ),
@@ -647,11 +645,6 @@ class _ThirdPageState extends State<ThirdPage> {
 
 
 
-
-
-
-
-
 class FourthPage extends StatefulWidget {
   const FourthPage({Key? key}) : super(key: key);
 
@@ -661,6 +654,7 @@ class FourthPage extends StatefulWidget {
 
 class _FourthPageState extends State<FourthPage> {
   List<String> _savedImages = [];
+  Set<String> _selectedImages = {};
 
   @override
   void initState() {
@@ -675,13 +669,66 @@ class _FourthPageState extends State<FourthPage> {
     });
   }
 
+  void _toggleSelection(String imagePath) {
+    setState(() {
+      if (_selectedImages.contains(imagePath)) {
+        _selectedImages.remove(imagePath);
+      } else {
+        _selectedImages.add(imagePath);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedImages() async {
+    if (_selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images selected to delete.')),
+      );
+      return;
+    }
+
+    try {
+      for (String imagePath in _selectedImages) {
+        await DatabaseHelper().deleteImage(imagePath);
+
+        final file = File(imagePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+
+      setState(() {
+        _savedImages.removeWhere((image) => _selectedImages.contains(image));
+        _selectedImages.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selected images deleted successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete images: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saved Images', style: TextStyle(color: Colors.black)),
+        title: Text(
+          'Saved Images (${_selectedImages.length} selected)',
+          style: const TextStyle(color: Colors.black),
+        ),
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          if (_selectedImages.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.black),
+              onPressed: _deleteSelectedImages,
+            ),
+        ],
       ),
       body: _savedImages.isNotEmpty
           ? GridView.builder(
@@ -690,11 +737,11 @@ class _FourthPageState extends State<FourthPage> {
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
+          childAspectRatio: 1, // Makes images square
         ),
         itemCount: _savedImages.length,
         itemBuilder: (context, index) {
           String imagePath = _savedImages[index];
-          print("Loading image from path: $imagePath"); // Debugging line
 
           File imageFile = File(imagePath);
           if (!imageFile.existsSync()) {
@@ -703,16 +750,46 @@ class _FourthPageState extends State<FourthPage> {
             );
           }
 
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.file(
-                imageFile,
-                fit: BoxFit.cover,
-              ),
+          bool isSelected = _selectedImages.contains(imagePath);
+
+          return GestureDetector(
+            onLongPress: () => _toggleSelection(imagePath),
+            onTap: () {
+              if (_selectedImages.isNotEmpty) {
+                _toggleSelection(imagePath);
+              } else {
+                // Pass the selected image path back to the ThirdPage
+                Navigator.pop(context, imagePath);
+              }
+            },
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isSelected ? Colors.blue : Colors.transparent,
+                      width: 3,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: AspectRatio(
+                      aspectRatio: 1, // Forces all images to be square
+                      child: Image.file(
+                        imageFile,
+                        fit: BoxFit.cover, // Ensures images cover the entire box
+                      ),
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Icon(Icons.check_circle, color: Colors.blue),
+                  ),
+              ],
             ),
           );
         },
