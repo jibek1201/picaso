@@ -359,7 +359,13 @@ class _ThirdPageState extends State<ThirdPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const FourthPage()),
-                );
+                ).then((imagePath) {
+                  if (imagePath != null) {
+                    setState(() {
+                      _imagePath = imagePath;
+                    });
+                  }
+                });
               },
               child: Image.asset(
                 'images/vector.png',
@@ -369,6 +375,7 @@ class _ThirdPageState extends State<ThirdPage> {
             ),
           ),
         ],
+
       ),
       body: Column(
         children: [
@@ -661,7 +668,6 @@ class _ThirdPageState extends State<ThirdPage> {
 
 
 
-
 class FourthPage extends StatefulWidget {
   const FourthPage({Key? key}) : super(key: key);
 
@@ -682,7 +688,7 @@ class _FourthPageState extends State<FourthPage> {
   Future<void> _loadSavedImages() async {
     final images = await DatabaseHelper().getImages();
     setState(() {
-      _savedImages = images;
+      _savedImages = images.reversed.toList(); // Show new images first
     });
   }
 
@@ -706,10 +712,8 @@ class _FourthPageState extends State<FourthPage> {
 
     try {
       for (String imagePath in _selectedImages) {
-        // Remove the image record from the database
         await DatabaseHelper().deleteImage(imagePath);
 
-        // Delete the image file from the device
         final file = File(imagePath);
         if (await file.exists()) {
           await file.delete();
@@ -756,14 +760,14 @@ class _FourthPageState extends State<FourthPage> {
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 1, // Makes images square
+          childAspectRatio: 1, // Keeps images square
         ),
         itemCount: _savedImages.length,
         itemBuilder: (context, index) {
           String imagePath = _savedImages[index];
           File imageFile = File(imagePath);
           if (!imageFile.existsSync()) {
-            return Center(
+            return const Center(
               child: Text(
                 "Image not found",
                 style: TextStyle(color: Colors.red),
@@ -779,7 +783,6 @@ class _FourthPageState extends State<FourthPage> {
               if (_selectedImages.isNotEmpty) {
                 _toggleSelection(imagePath);
               } else {
-                // Send the selected image path back to ThirdPage
                 Navigator.pop(context, imagePath);
               }
             },
@@ -796,10 +799,10 @@ class _FourthPageState extends State<FourthPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: AspectRatio(
-                      aspectRatio: 1, // Forces all images to be square
+                      aspectRatio: 1,
                       child: Image.file(
                         imageFile,
-                        fit: BoxFit.cover, // Ensures images cover the entire box
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
