@@ -220,6 +220,9 @@ class SecondPage extends StatelessWidget {
 
 
 
+
+
+
 class ThirdPage extends StatefulWidget {
   final String? initialImagePath; // Add a parameter to receive the image path
 
@@ -237,7 +240,6 @@ class _ThirdPageState extends State<ThirdPage> {
   String? _imagePath;
   String? _contourImagePath;
   final TextEditingController _controller = TextEditingController();
-  String _savedFavImg = '';
 
 
   @override
@@ -275,12 +277,6 @@ class _ThirdPageState extends State<ThirdPage> {
     }
   }
 
-  Future<void> _loadSavedImages() async {
-    final images = await DatabaseHelper().getFavImage();
-    setState(() {
-      _savedFavImg= images;
-    });
-  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -389,13 +385,11 @@ class _ThirdPageState extends State<ThirdPage> {
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                // child: _contourImagePath != null
-                //     ? Image.file(File(_contourImagePath!))
-                //     : _imagePath != null
-                //     ? Image.file(File(_imagePath!))
-                //     : const Center(child: Text('No image selected')),
-                
-                child: _savedFavImg.isNotEmpty ? Image.asset(_savedFavImg) : Text(''),
+                child: _contourImagePath != null
+                    ? Image.file(File(_contourImagePath!))
+                    : _imagePath != null
+                    ? Image.file(File(_imagePath!))
+                    : const Center(child: Text('No image selected')),
               ),
             ),
           ),
@@ -692,17 +686,14 @@ class _FourthPageState extends State<FourthPage> {
     });
   }
 
-  Future<void> _toggleSelection(String imagePath) async{
-
+  void _toggleSelection(String imagePath) {
+    setState(() {
       if (_selectedImages.contains(imagePath)) {
-        setState(() {
-          _selectedImages.remove(imagePath);
-        });
+        _selectedImages.remove(imagePath);
       } else {
-        // _selectedImages.add(imagePath);
-       await   DatabaseHelper().favImage(imagePath);
+        _selectedImages.add(imagePath);
       }
-
+    });
   }
 
   Future<void> _deleteSelectedImages() async {
@@ -770,7 +761,6 @@ class _FourthPageState extends State<FourthPage> {
         itemCount: _savedImages.length,
         itemBuilder: (context, index) {
           String imagePath = _savedImages[index];
-
           File imageFile = File(imagePath);
           if (!imageFile.existsSync()) {
             return Center(
@@ -787,11 +777,10 @@ class _FourthPageState extends State<FourthPage> {
             onLongPress: () => _toggleSelection(imagePath),
             onTap: () {
               if (_selectedImages.isNotEmpty) {
-                log('${imagePath}');
                 _toggleSelection(imagePath);
               } else {
-                // Pass the selected image path back to the ThirdPage
-                Navigator.pop(context, imagePath); // This sends the imagePath back
+                // Send the selected image path back to ThirdPage
+                Navigator.pop(context, imagePath);
               }
             },
             child: Stack(

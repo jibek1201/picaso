@@ -1,24 +1,20 @@
-import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
-
   factory DatabaseHelper() {
     return _instance;
   }
-
   DatabaseHelper._internal();
-
   // Initialize and get the database
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
-
   // Database initialization
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'image_database.db');
@@ -35,7 +31,6 @@ class DatabaseHelper {
       },
     );
   }
-
   // Insert an image path into the database
   Future<void> insertImage(String imagePath) async {
     final db = await database;
@@ -45,34 +40,13 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
-
-  Future<void> favImage(String image) async {
-    final db = await database;
-    await db.insert(
-      'images',
-      {'favPath': image},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-
   // Fetch all saved image paths from the database
   Future<List<String>> getImages() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('images');
-
     // Extract and return the image paths from the database
     return List<String>.from(maps.map((map) => map['imagePath']));
   }
-
-  Future<String> getFavImage() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('images');
-
-    // Extract and return the image paths from the database
-    return maps.map((map) => map['favPath']).first;
-  }
-
   // Delete an image by its path
   Future<void> deleteImage(String imagePath) async {
     final db = await database;
