@@ -73,10 +73,13 @@ class _ThirdPageState extends State<ImageProcessing> {
     if (pickedFile != null) {
       setState(() {
         _imagePath = pickedFile.path;
-        _contourImagePath = null; // Clear the previous contour image
       });
+
+      // Automatically generate contour image
+      await _generateContourImage();
     }
   }
+
 
   Future<void> _generateContourImage() async {
     if (_imagePath == null) {
