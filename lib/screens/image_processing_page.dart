@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 import 'package:picaso_app1/screens/saved_images_page.dart';
 import 'utils/database_helper.dart';
-
-
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 
 class ImageProcessing extends StatefulWidget {
-  final String? initialImagePath; // Add a parameter to receive the image path
+  final String? initialImagePath;
 
   const ImageProcessing({Key? key, this.initialImagePath}) : super(key: key);
 
@@ -29,11 +29,9 @@ class _ThirdPageState extends State<ImageProcessing> {
   String? _contourImagePath;
   final TextEditingController _controller = TextEditingController();
 
-
   @override
   void initState() {
     super.initState();
-    // Initialize the _imagePath with the image passed from FourthPage if available
     if (widget.initialImagePath != null) {
       _imagePath = widget.initialImagePath;
     }
@@ -65,7 +63,6 @@ class _ThirdPageState extends State<ImageProcessing> {
     }
   }
 
-
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -75,17 +72,13 @@ class _ThirdPageState extends State<ImageProcessing> {
         _imagePath = pickedFile.path;
       });
 
-      // Automatically generate contour image
       await _generateContourImage();
     }
   }
 
-
   Future<void> _generateContourImage() async {
     if (_imagePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image first.')),
-      );
+
       return;
     }
 
@@ -97,9 +90,15 @@ class _ThirdPageState extends State<ImageProcessing> {
         throw Exception("Failed to decode image.");
       }
 
+
       final grayImage = img.grayscale(decodedImage);
+
+
       final edgeImage = img.sobel(grayImage);
+
+
       final invertedImage = img.invert(edgeImage);
+
 
       final tempDir = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -120,6 +119,101 @@ class _ThirdPageState extends State<ImageProcessing> {
     }
   }
 
+
+  Future<void> _generateAIImage(String prompt) async {
+    try {
+      final aiImageResponse = await generateAIImage(prompt);
+
+      if (aiImageResponse != null && aiImageResponse['image_url'] != null) {
+        final imageUrl = aiImageResponse['image_url'];
+
+
+        final response = await http.get(Uri.parse(imageUrl));
+
+
+        if (response.statusCode == 200) {
+          final contentType = response.headers['content-type'];
+
+          if (contentType != null && (contentType.contains('image') || contentType.contains('png') || contentType.contains('jpeg'))) {
+            final bytes = response.bodyBytes;
+
+
+            final tempDir = await getTemporaryDirectory();
+            final timestamp = DateTime.now().millisecondsSinceEpoch;
+            final aiImageFile = File('${tempDir.path}/ai_image_$timestamp.png');
+
+
+            await aiImageFile.writeAsBytes(bytes);
+
+            setState(() {
+              _contourImagePath = aiImageFile.path;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('AI image generated successfully!')),
+            );
+          } else {
+            throw Exception('The response is not an image.');
+          }
+        } else {
+          throw Exception('Failed to fetch the image. Status code: ${response.statusCode}');
+        }
+      } else {
+        throw Exception('Failed to generate AI image');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate AI image: $e')),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> generateAIImage(String prompt) async {
+    final url = Uri.parse('https://api.stability.ai/v2beta/stable-image/generate/sd3');
+
+
+    final headers = {
+      'Authorization': 'Bearer sk-gOp9iwamUFAoEzT7YlJNkqXgHwflSzznYRNe4cM9kOhl7h8b',  // Use 'Bearer' before the API key
+      'Content-Type': 'application/json',
+    };
+
+    final body = json.encode({
+      'prompt': prompt,
+      'width': 300,
+      'height': 400,
+      'samples': 1,
+      'cfg_scale': 7.5,
+
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+
+
+        final artifacts = responseData['artifacts'];
+        if (artifacts != null && artifacts.isNotEmpty) {
+          final imageUrl = artifacts[0]['url'];  // Extract URL from the first artifact
+          return {'image_url': imageUrl};
+        } else {
+          throw Exception('No artifacts found in the response.');
+        }
+      } else {
+        throw Exception('Failed to generate AI image: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+
+
+
+
   void _clearAction() {
     setState(() {
       _controller.clear();
@@ -128,6 +222,8 @@ class _ThirdPageState extends State<ImageProcessing> {
       isSaved = false; // Reset save state
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +262,6 @@ class _ThirdPageState extends State<ImageProcessing> {
             ),
           ),
         ],
-
       ),
       body: Column(
         children: [
@@ -350,16 +445,23 @@ class _ThirdPageState extends State<ImageProcessing> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ElevatedButton(
-                      onPressed: _generateContourImage,
+                      onPressed: () {
+                        if (_controller.text.isNotEmpty) {
+                          _generateAIImage(_controller.text);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a prompt to generate the image.')),
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 16),
                       ),
-                      child: const Text('Convert'),
+                      child: const Text('Generate'),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
